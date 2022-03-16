@@ -17,7 +17,7 @@ class SyntaxTree(object):
     def __init__(self, operators, regex):
         ## language stuff
         self.operators = operators
-        self.symbols = [char for char in regex if char not in operators if char != '(' and char != ')']
+        self.symbols = list(set([char for char in regex if char not in operators if char != '(' and char != ')']))
         self.regex = regex
         self.postfix = ""
         
@@ -44,8 +44,9 @@ class SyntaxTree(object):
         for i in range(len(self.regex)):
             new_regex += self.regex[i]
             try:
-                if (self.regex[i] in self.symbols and self.regex[i + 1] in self.symbols) or (self.regex[i] not in ['|', '('] and self.regex[i + 1] in self.symbols + ['(']): #  or (self.regex[i] in ['*', ')'] and self.regex[i + 1] in self.symbols + ['('])
-                    new_regex += '^'
+                if (self.regex[i] in self.symbols and self.regex[i + 1] in self.symbols) \
+                    or (self.regex[i] not in ['|', '('] and self.regex[i + 1] in self.symbols + ['(']):
+                        new_regex += '^'
             except:
                 pass
     
@@ -55,8 +56,8 @@ class SyntaxTree(object):
     def to_postfix(self):
         operator_stack = Stack()
         
+        print(Colors.OKBLUE + "[INFO] " + Colors.ENDC + "Transforming regex to postfix")
         for char in self.regex:
-            
             if char in self.symbols:
                 self.postfix += char
                 
@@ -85,18 +86,21 @@ class SyntaxTree(object):
                 
         while not operator_stack.is_empty():
             self.postfix += operator_stack.pop()
+            
+        print(Colors.OKBLUE + "[INFO] " + Colors.ENDC + "Postfix obtained: " + self.postfix)
                     
     
     def build_tree(self):
         tree_stack = Stack()
         stack = []
         
+        print(Colors.OKBLUE + "[INFO] " + Colors.ENDC + "Building tree")
         for char in self.postfix:
             if char in self.symbols:
                 tree_stack.push(Node(char))
                 stack.append(Node(char))
             else:
-                if char in ['*']:
+                if char in ['*', '?', '+']:
                     right = tree_stack.pop()
                     stack.pop()
                     
@@ -124,8 +128,33 @@ class SyntaxTree(object):
         
         self.root = tree_stack.pop()
         
+    
+    def _height(self, node):
+        if node is None:
+            return 0
+        else:
+            return 1 + max(self._height(node.left), self._height(node.right))    
+    
+    
+    def height(self):
+        return self._height(self.root)
+    
+    
+    def traverse_postorder(self, node, reachable=None):
+        if not node:
+            return
         
+        if reachable is None:
+            reachable = []
+            
+        self.traverse_postorder(node.left, reachable)
+        self.traverse_postorder(node.right, reachable)
         
+        reachable.append(node.data)
+        
+        return reachable
+    
+    
     def __str__(self):
         if self.root is not None:
             self.print_tree(self.root)
@@ -159,6 +188,10 @@ class Node(object):
         self.left = left
         self.right = right
         self.parent = parent
+        
+        self.lastpos = []
+        self.firstpos = []
+        self.followpos = []
 
 
 
@@ -205,3 +238,17 @@ class Stack(object):
     
     def is_empty(self):
         return self.stack.empty()
+
+
+
+
+class Colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'

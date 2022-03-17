@@ -19,8 +19,9 @@ EPSILON = 'ε'
 #REGEX = '(a|b)a?'
 #REGEX = '(aa|b)+'
 #REGEX = '(a|b)*abb'
-#REGEX = '(a|b)*a(a|b)(a|b)'
-REGEX = '(0|1)1*(0|1)'
+REGEX = '(a|b)*a(a|b)(a|b)'
+#REGEX = '(0|1)1*(0|1)'
+#REGEX = '(b|b)*abb(a|b)*'
 
 ## Syntax tree construction
 # generate tree from regex

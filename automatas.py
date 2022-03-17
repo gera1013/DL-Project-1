@@ -314,6 +314,7 @@ class DFA(FA):
         
         # remove 'ε' from symbols (affects construction)
         nfa and 'ε' in nfa.symbols and nfa.symbols.remove('ε')
+        syntax_tree and 'ε' in syntax_tree.symbols and syntax_tree.symbols.remove('ε')
         
         # instanciamos al objeto 
         FA.__init__(
@@ -326,7 +327,7 @@ class DFA(FA):
         )
         
     
-    def followpos(self):
+    def follow_pos(self):
         self.followpos = {}
         
         for node in self.nodes:
@@ -344,7 +345,9 @@ class DFA(FA):
     
     
     def direct(self):
-        self.followpos()
+        self.follow_pos()
+        
+        print(self.followpos)
         
         final_pos = 0
         
@@ -367,6 +370,7 @@ class DFA(FA):
                 for node in self.nodes:
                     if node.data == symbol and node.pos in T:
                         U += self.followpos[node.pos]
+                        U = list(set(U))
                 
                 if len(U) > 0:
                     if U not in dstates_u and U not in dstates_m:

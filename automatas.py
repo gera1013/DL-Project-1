@@ -24,10 +24,34 @@ class FA(object):
         self.terminal_states = tstate
         
     
+    def print_automata(self, type, i_state, t_state, states, symbols, t_function):
+        print(Colors.OKBLUE + "[INFO]" + Colors.ENDC + " NEW " + Colors.UNDERLINE + type + Colors.ENDC + " AUTOMATA CREATED WITH")
+        print(Colors.OKCYAN + " INITIAL STATE" + Colors.ENDC)
+        print(" °", i_state)
+        print(Colors.OKCYAN + " TERMINAL STATES" + Colors.ENDC)
+        print(" °", t_state)
+        print(Colors.OKCYAN + " STATES" + Colors.ENDC)
+        print(" °", states)
+        print(Colors.OKCYAN + " SYMBOLS" + Colors.ENDC)
+        print(" °", symbols)
+        print(Colors.OKCYAN + " TRANSITIONS" + Colors.ENDC)
+        print(" °")
+        for key, value in t_function.items():
+            print("     ", key, "->", value)
+        print("")
+
+
+
 
 class NFA(FA):
-    def __init__(self, symbols, syntax_tree=None, states=[], tfunc={}, istate=None, tstate=[]):
+    def __init__(self, symbols=None, syntax_tree=None, states=[], tfunc={}, istate=None, tstate=[]):
         self.syntax_tree = syntax_tree
+        
+        if symbols:
+            try:
+                symbols.remove('ε')
+            except:
+                pass
         
         # instanciamos al objeto 
         FA.__init__(self, symbols, states=states, tfunc=tfunc, istate=istate, tstate=tstate)
@@ -84,6 +108,13 @@ class NFA(FA):
                     
                 else:
                     pass
+                
+        final_automata = self.a_stack.pop()
+        self.initial_state = final_automata.initial_state
+        self.terminal_states = final_automata.terminal_states
+        self.states = final_automata.states
+        self.symbols = final_automata.symbols
+        self.transition_function = final_automata.transition_function
                 
     
     def SYMBOL(self, symbol):
@@ -237,20 +268,99 @@ class NFA(FA):
         self.print_automata("KLEENE", i_state, t_state, states, symbols, t_function)
         
         return NFA(symbols=symbols, states=states, tfunc=t_function, istate=i_state, tstate=t_state)
+
+
+
+
+class DFA(FA):
+    def __init__(self, nfa=None, syntax_tree=None, symbols=None, states=[], tfunc={}, istate=None, tstate=[]):
+        self.syntax_tree = syntax_tree
+        self.nfa = nfa
+        
+        # remove 'ε' from symbols (affects construction)
+        'ε' in nfa.symbols and nfa.symbols.remove('ε')
+        
+        # instanciamos al objeto 
+        FA.__init__(
+            self, 
+            symbols= nfa.symbols,
+            states=states, 
+            tfunc=tfunc,
+            istate=istate, 
+            tstate=tstate
+        )
+        
+    
+    def subset(self):
+        t_func = {}
+        
+        dstates_u = [self.e_closure_state(self.nfa.initial_state)]
+        dstates_m = []
+        
+        while len(dstates_u) > 0:
+            T = dstates_u.pop(0)
+            dstates_m.append(T)
+            
+            for symbol in self.symbols:
+                U = self.e_closure_set(self.move(T, symbol))
+                
+                if len(U) > 0:
+                    if U not in dstates_u and U not in dstates_m:
+                        dstates_u.append(U)
+                
+                    t_func[(tuple(T), symbol)] = [item for item in U]
+                    
+        
+        for states in dstates_m:
+            for state in states:
+                if state in self.nfa.terminal_states:
+                    self.terminal_states.append(state)
+                
+        self.initial_state = dstates_m[0]
+        self.states = dstates_m 
+        self.transition_function = t_func
     
     
-    def print_automata(self, type, i_state, t_state, states, symbols, t_function):
-        print(Colors.OKBLUE + "[INFO]" + Colors.ENDC + " NEW " + Colors.UNDERLINE + type + Colors.ENDC + " AUTOMATA CREATED WITH")
-        print(Colors.OKCYAN + " INITIAL STATE" + Colors.ENDC)
-        print(" °", i_state)
-        print(Colors.OKCYAN + " TERMINAL STATES" + Colors.ENDC)
-        print(" °", t_state)
-        print(Colors.OKCYAN + " STATES" + Colors.ENDC)
-        print(" °", states)
-        print(Colors.OKCYAN + " SYMBOLS" + Colors.ENDC)
-        print(" °", symbols)
-        print(Colors.OKCYAN + " TRANSITIONS" + Colors.ENDC)
-        print(" °")
-        for key, value in t_function.items():
-            print("     ", key, "->", value)
-        print("")
+    def e_closure_state(self, state):
+        closure = [state]
+        
+        for key in self.nfa.transition_function.keys():
+            if key[0] == state and key[1] == 'ε':
+                for x in self.nfa.transition_function[key]:
+                    closure.append(x)
+            
+            
+        return closure
+    
+    
+    def e_closure_set(self, T):
+        t_func = self.nfa.transition_function
+        stack = Stack()
+        
+        for t in T:
+            stack.push(t)
+            
+        closure = T[:]
+        
+        while not stack.is_empty():
+            top = stack.pop()
+            
+            for key, value in t_func.items():
+                if key[0] == top and key[1] == 'ε':
+                    for x in value:
+                        if x not in closure:
+                            closure.append(x)
+                            stack.push(x)
+                    
+        return closure            
+    
+    
+    def move(self, sset, symbol):
+        move_set = []
+        
+        for key in self.nfa.transition_function.keys():
+            if key[0] in sset and key[1] == symbol: 
+                for x in self.nfa.transition_function[key]:
+                    move_set.append(x)
+            
+        return move_set

@@ -14,7 +14,7 @@ class SyntaxTree(object):
         -> regex (string): expresión regular que genera un lenguaje
         -> root (Node): nodo raíz del árbol
     """
-    def __init__(self, operators, regex):
+    def __init__(self, operators, regex, direct=False):
         ## language stuff
         self.operators = operators
         self.symbols = list(set([char for char in regex if char not in operators if char != '(' and char != ')']))
@@ -27,7 +27,10 @@ class SyntaxTree(object):
         ## transformations to regex
         self.explicit_concat()
         self.to_postfix()
+        direct and self.clean_postfix()
         self.build_tree()
+        
+        self.pos = 1
         
         
     def get_precedence(self, c):
@@ -51,6 +54,21 @@ class SyntaxTree(object):
                 pass
     
         self.regex = new_regex
+        
+        
+    def clean_postfix(self):
+        print(Colors.OKBLUE + "[INFO] " + Colors.ENDC + "Cleaning and refactoring postfix")
+        new_postfix = ""
+        
+        for char in self.postfix:
+            if char == '?':
+                new_postfix += 'ε|'
+                self.symbols.append('ε')
+            else:
+                new_postfix += char
+        
+        self.postfix = new_postfix
+            
     
     
     def to_postfix(self):
@@ -92,31 +110,24 @@ class SyntaxTree(object):
     
     def build_tree(self):
         tree_stack = Stack()
-        stack = []
         
         print(Colors.OKBLUE + "[INFO] " + Colors.ENDC + "Building tree")
         for char in self.postfix:
             if char in self.symbols:
                 tree_stack.push(Node(char))
-                stack.append(Node(char))
             else:
                 if char in ['*', '?', '+']:
                     right = tree_stack.pop()
-                    stack.pop()
                     
                     new = Node(char, right=right)
                     
                     right.parent = new
                     
                     tree_stack.push(new)
-                    stack.append(new)
                     
                 else:
                     right = tree_stack.pop()
                     left = tree_stack.pop()
-                    
-                    stack.pop()
-                    stack.pop()
                     
                     new = Node(char, right=right, left=left)
                     
@@ -124,7 +135,6 @@ class SyntaxTree(object):
                     left.parent = new
                     
                     tree_stack.push(new)
-                    stack.append(new)
         
         self.root = tree_stack.pop()
         
@@ -140,19 +150,59 @@ class SyntaxTree(object):
         return self._height(self.root)
     
     
-    def traverse_postorder(self, node, reachable=None):
+    def traverse_postorder(self, node, reachable=None, nodes=None, full=False):
         if not node:
             return
         
         if reachable is None:
             reachable = []
             
-        self.traverse_postorder(node.left, reachable)
-        self.traverse_postorder(node.right, reachable)
+        if nodes is None:
+            nodes = []
+            
+        self.traverse_postorder(node.left, reachable, nodes)
+        self.traverse_postorder(node.right, reachable, nodes)
         
         reachable.append(node.data)
+        nodes.append(node)
         
-        return reachable
+        if node.data in self.symbols:
+            # define pos
+            node.pos = self.pos
+            self.pos += 1
+            
+            # define nullable
+            if node.data == 'ε':
+                node.nullable = True
+            else:
+                node.nullable = False
+                
+            # define first and last pos
+            node.firstpos = [node.pos]
+            node.lastpos = [node.pos]
+            
+        else:
+            if node.data == '|':
+                node.nullable = node.right.nullable or node.left.nullable
+                
+                node.firstpos = list(set(node.right.firstpos + node.left.firstpos))
+                node.lastpos = list(set(node.right.lastpos + node.left.lastpos))
+                
+            elif node.data == '^':
+                node.nullable = node.right.nullable and node.left.nullable
+                
+                node.firstpos = list(set(node.right.firstpos + node.left.firstpos)) if node.left.nullable else node.left.firstpos
+                node.lastpos = list(set(node.right.lastpos + node.left.lastpos)) if node.right.nullable else node.right.lastpos
+                
+            elif node.data == '*':
+                node.nullable = True
+                node.firstpos = node.right.firstpos
+                node.lastpos = node.right.lastpos
+            
+            else:
+                pass
+        
+        return nodes if full else reachable 
     
     
     def __str__(self):
@@ -192,6 +242,8 @@ class Node(object):
         self.lastpos = []
         self.firstpos = []
         self.followpos = []
+        self.nullable = False
+        self.pos = None
 
 
 

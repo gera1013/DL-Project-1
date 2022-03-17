@@ -1,7 +1,13 @@
+import os
+
 import uuid
 import shortuuid
+import graphviz, tempfile
 
 from structures import Stack, Colors
+
+
+os.environ["PATH"] += os.pathsep + 'C:\Program Files\Graphviz\bin'
 
 
 shortuuid.set_alphabet("0914856327")
@@ -24,21 +30,54 @@ class FA(object):
         self.terminal_states = tstate
         
     
-    def print_automata(self, type, i_state, t_state, states, symbols, t_function):
+    def print_automata(self, type, i_state, t_state, states, symbols, t_function, state_mapping=None):
         print(Colors.OKBLUE + "[INFO]" + Colors.ENDC + " NEW " + Colors.UNDERLINE + type + Colors.ENDC + " AUTOMATA CREATED WITH")
         print(Colors.OKCYAN + " INITIAL STATE" + Colors.ENDC)
         print(" °", i_state)
         print(Colors.OKCYAN + " TERMINAL STATES" + Colors.ENDC)
         print(" °", t_state)
         print(Colors.OKCYAN + " STATES" + Colors.ENDC)
-        print(" °", states)
+        print(" °")
+        for state in states:
+            print("     ", state)
         print(Colors.OKCYAN + " SYMBOLS" + Colors.ENDC)
         print(" °", symbols)
+        if state_mapping:
+            print(Colors.OKCYAN + " STATE MAPPING" + Colors.ENDC)
+            print(" °")
+            for key, value in state_mapping.items():
+                print("     ", key, "->", value)
         print(Colors.OKCYAN + " TRANSITIONS" + Colors.ENDC)
         print(" °")
         for key, value in t_function.items():
             print("     ", key, "->", value)
         print("")
+        
+        
+    def graph_automata(self, mapping=None):
+        builder = graphviz.Digraph()
+        
+        for x in self.states:
+            x = x if not mapping else mapping[tuple(x)]
+            if x not in self.terminal_states:
+                builder.attr('node', shape='circle')
+                builder.node(x)
+            else:
+                builder.attr('node', shape='doublecircle')
+                builder.node(x)
+                
+        builder.attr('node', shape='none')
+        builder.node('')
+        builder.edge('', self.initial_state)
+        
+        for key, value in self.transition_function.items():
+            if isinstance(value, str):
+                builder.edge(key[0], value, label=(key[1]))
+            else:
+                for val in value:
+                    builder.edge(key[0], val, label=(key[1]))
+        
+        builder.view(tempfile.mktemp('.gv'), cleanup=True)
 
 
 
@@ -46,12 +85,6 @@ class FA(object):
 class NFA(FA):
     def __init__(self, symbols=None, syntax_tree=None, states=[], tfunc={}, istate=None, tstate=[]):
         self.syntax_tree = syntax_tree
-        
-        if symbols:
-            try:
-                symbols.remove('ε')
-            except:
-                pass
         
         # instanciamos al objeto 
         FA.__init__(self, symbols, states=states, tfunc=tfunc, istate=istate, tstate=tstate)
@@ -108,7 +141,7 @@ class NFA(FA):
                     
                 else:
                     pass
-                
+        
         final_automata = self.a_stack.pop()
         self.initial_state = final_automata.initial_state
         self.terminal_states = final_automata.terminal_states
@@ -267,23 +300,25 @@ class NFA(FA):
         
         self.print_automata("KLEENE", i_state, t_state, states, symbols, t_function)
         
-        return NFA(symbols=symbols, states=states, tfunc=t_function, istate=i_state, tstate=t_state)
+        return NFA(symbols=symbols, states=states, tfunc=t_function, istate=i_state, tstate=[t_state])
 
 
 
 
 class DFA(FA):
-    def __init__(self, nfa=None, syntax_tree=None, symbols=None, states=[], tfunc={}, istate=None, tstate=[]):
+    def __init__(self, nfa=None, syntax_tree=None, symbols=None, states=[], tfunc={}, istate=None, tstate=[], direct=False, nodes=None):
         self.syntax_tree = syntax_tree
         self.nfa = nfa
+        self.nodes = nodes
+        self.state_mapping = None
         
         # remove 'ε' from symbols (affects construction)
-        'ε' in nfa.symbols and nfa.symbols.remove('ε')
+        nfa and 'ε' in nfa.symbols and nfa.symbols.remove('ε')
         
         # instanciamos al objeto 
         FA.__init__(
             self, 
-            symbols= nfa.symbols,
+            symbols=nfa.symbols if nfa else syntax_tree.symbols,
             states=states, 
             tfunc=tfunc,
             istate=istate, 
@@ -291,8 +326,80 @@ class DFA(FA):
         )
         
     
+    def followpos(self):
+        self.followpos = {}
+        
+        for node in self.nodes:
+            if node.pos:
+                self.followpos[node.pos] = []
+            
+        for node in self.nodes:
+            if node.data == '^':
+                for i in node.left.lastpos:
+                    self.followpos[i] += node.right.firstpos
+                    
+            if node.data == '*':
+                for i in node.lastpos:
+                    self.followpos[i] += node.firstpos
+    
+    
+    def direct(self):
+        self.followpos()
+        
+        final_pos = 0
+        
+        for node in self.nodes:
+            if node.data == '#':
+                final_pos = node.pos
+
+        t_func = {}
+        subset_mapping = {}
+        
+        dstates_u = [self.syntax_tree.root.firstpos]
+        dstates_m = []
+        
+        while len(dstates_u) > 0:
+            T = dstates_u.pop(0)
+            dstates_m.append(T)
+            
+            for symbol in self.symbols:
+                U = []
+                for node in self.nodes:
+                    if node.data == symbol and node.pos in T:
+                        U += self.followpos[node.pos]
+                
+                if len(U) > 0:
+                    if U not in dstates_u and U not in dstates_m:
+                        dstates_u.append(U)
+                        
+                    try: 
+                        subset_mapping[tuple(T)]
+                    except:
+                        subset_mapping[tuple(T)] = shortuuid.encode(uuid.uuid4())[:4]
+                        
+                    try:
+                        subset_mapping[tuple(U)]
+                    except:
+                        subset_mapping[tuple(U)] = shortuuid.encode(uuid.uuid4())[:4]
+                        
+                    
+                    t_func[(subset_mapping[tuple(T)], symbol)] = subset_mapping[tuple(U)]                        
+
+        for state in dstates_m:
+            if final_pos in state:
+                self.terminal_states.append(subset_mapping[tuple(state)])
+
+        self.initial_state = subset_mapping[tuple(dstates_m[0])]
+        self.states = dstates_m
+        self.transition_function = t_func
+        self.state_mapping = subset_mapping
+        
+        self.print_automata("DIRECT DFA", self.initial_state, self.terminal_states, self.states, self.symbols, self.transition_function, state_mapping=subset_mapping)
+    
+    
     def subset(self):
         t_func = {}
+        subset_mapping = {}
         
         dstates_u = [self.e_closure_state(self.nfa.initial_state)]
         dstates_m = []
@@ -307,27 +414,48 @@ class DFA(FA):
                 if len(U) > 0:
                     if U not in dstates_u and U not in dstates_m:
                         dstates_u.append(U)
-                
-                    t_func[(tuple(T), symbol)] = [item for item in U]
+                    
+                    try: 
+                        subset_mapping[tuple(T)]
+                    except:
+                        subset_mapping[tuple(T)] = shortuuid.encode(uuid.uuid4())[:4]
+                        
+                    try:
+                        subset_mapping[tuple(U)]
+                    except:
+                        subset_mapping[tuple(U)] = shortuuid.encode(uuid.uuid4())[:4]
+
+                    t_func[(subset_mapping[tuple(T)], symbol)] = subset_mapping[tuple(U)]
                     
         
         for states in dstates_m:
             for state in states:
                 if state in self.nfa.terminal_states:
-                    self.terminal_states.append(state)
+                    self.terminal_states.append(subset_mapping[tuple(states)])
                 
-        self.initial_state = dstates_m[0]
+        self.initial_state = subset_mapping[tuple(dstates_m[0])]
         self.states = dstates_m 
         self.transition_function = t_func
-    
-    
-    def e_closure_state(self, state):
-        closure = [state]
+        self.state_mapping = subset_mapping
         
-        for key in self.nfa.transition_function.keys():
-            if key[0] == state and key[1] == 'ε':
-                for x in self.nfa.transition_function[key]:
-                    closure.append(x)
+        self.print_automata("DFA", self.initial_state, self.terminal_states, self.states, self.symbols, self.transition_function, state_mapping=subset_mapping)
+    
+    
+    def e_closure_state(self, s):
+        closure = [s]
+        
+        stack = Stack()
+        stack.push(s)
+        
+        while not stack.is_empty():
+            state = stack.pop()
+            
+            for key in self.nfa.transition_function.keys():
+                if key[0] == state and key[1] == 'ε':
+                    for x in self.nfa.transition_function[key]:
+                        if x not in closure:
+                            closure.append(x)
+                            stack.push(x)
             
             
         return closure

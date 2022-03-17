@@ -86,6 +86,11 @@ class SyntaxTree(object):
                 while operator_stack.top() != '(':
                     self.postfix += operator_stack.pop()
                     
+                    if operator_stack.is_empty():
+                        print(Colors.FAIL + "[ERROR] " + Colors.ENDC + "Error sintáctico, falta un paréntesis en la expresión")
+                        exit()
+                    
+                    
                 operator_stack.pop()
     
             else:
@@ -126,15 +131,19 @@ class SyntaxTree(object):
                     tree_stack.push(new)
                     
                 else:
-                    right = tree_stack.pop()
-                    left = tree_stack.pop()
+                    if tree_stack.get_size() > 1:
+                        right = tree_stack.pop()
+                        left = tree_stack.pop()
                     
-                    new = Node(char, right=right, left=left)
+                        new = Node(char, right=right, left=left)
                     
-                    right.parent = new
-                    left.parent = new
+                        right.parent = new
+                        left.parent = new
                     
-                    tree_stack.push(new)
+                        tree_stack.push(new)
+                    else:
+                        print(Colors.FAIL + "[ERROR] " + Colors.ENDC + "Operación CONCAT u OR incompleta, falta un símbolo")
+                        exit()
         
         self.root = tree_stack.pop()
         

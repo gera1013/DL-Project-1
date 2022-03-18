@@ -1,4 +1,6 @@
 import os
+from timeit import default_timer as timer
+from datetime import timedelta
 
 import uuid
 import shortuuid
@@ -308,6 +310,8 @@ class NFA(FA):
     
     
     def simulate(self, string):
+        start = timer()
+        
         S = DFA.e_closure_state(self, self.initial_state, self.transition_function)
         
         terminal = False
@@ -323,8 +327,10 @@ class NFA(FA):
         
         for state in S:
             if state in self.terminal_states: terminal = True
+            
+        end = timer()
         
-        return terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o"
+        return ((end-start) * 1000, terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o")
 
 
 
@@ -523,6 +529,8 @@ class DFA(FA):
     
     
     def simulate(self, string):
+        start = timer()
+        
         s = self.initial_state
         terminal = False
         
@@ -540,4 +548,6 @@ class DFA(FA):
         
         terminal = True if s in self.terminal_states else terminal
         
-        return terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o"
+        end = timer()
+        
+        return ((end - start) * 1000, terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o")

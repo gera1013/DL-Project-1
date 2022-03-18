@@ -122,14 +122,17 @@ class SyntaxTree(object):
                 tree_stack.push(Node(char))
             else:
                 if char in ['*', '?', '+']:
-                    right = tree_stack.pop()
+                    if tree_stack.get_size() > 0: 
+                        right = tree_stack.pop()
                     
-                    new = Node(char, right=right)
+                        new = Node(char, right=right)
                     
-                    right.parent = new
+                        right.parent = new
                     
-                    tree_stack.push(new)
-                    
+                        tree_stack.push(new)
+                    else:
+                        print(Colors.FAIL + "[ERROR] " + Colors.ENDC + "Operación " + char + " incompleta, insuficientes parámetros")
+                        exit()
                 else:
                     if tree_stack.get_size() > 1:
                         right = tree_stack.pop()

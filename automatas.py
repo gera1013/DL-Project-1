@@ -55,7 +55,7 @@ class FA(object):
         
         
     def graph_automata(self, mapping=None):
-        builder = graphviz.Digraph()
+        builder = graphviz.Digraph(graph_attr={'rankdir':'LR'})
         
         for x in self.states:
             x = x if not mapping else mapping[tuple(x)]
@@ -77,7 +77,11 @@ class FA(object):
                 for val in value:
                     builder.edge(key[0], val, label=(key[1]))
         
-        builder.view(tempfile.mktemp('.gv'), cleanup=True)
+        builder.view(tempfile.mktemp('.gv'), cleanup=True, )
+        
+        
+    def simulate(self):
+        raise Exception ("Not Implemented")
 
 
 
@@ -301,6 +305,26 @@ class NFA(FA):
         self.print_automata("KLEENE", i_state, t_state, states, symbols, t_function)
         
         return NFA(symbols=symbols, states=states, tfunc=t_function, istate=i_state, tstate=[t_state])
+    
+    
+    def simulate(self, string):
+        S = DFA.e_closure_state(self, self.initial_state, self.transition_function)
+        
+        terminal = False
+        
+        for char in string:
+            if char not in self.symbols:
+                print(Colors.FAIL + "[ERROR] " + Colors.ENDC + " Símbolo " + char + " no reconocido por el autómata")
+                terminal = None
+                break
+                exit()
+            
+            S = DFA.e_closure_set(self, DFA.move(self, S, char, self.transition_function), self.transition_function)
+        
+        for state in S:
+            if state in self.terminal_states: terminal = True
+        
+        return terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o"
 
 
 
@@ -405,7 +429,7 @@ class DFA(FA):
         t_func = {}
         subset_mapping = {}
         
-        dstates_u = [self.e_closure_state(self.nfa.initial_state)]
+        dstates_u = [self.e_closure_state(self.nfa.initial_state, self.nfa.transition_function)]
         dstates_m = []
         
         while len(dstates_u) > 0:
@@ -413,7 +437,7 @@ class DFA(FA):
             dstates_m.append(T)
             
             for symbol in self.symbols:
-                U = self.e_closure_set(self.move(T, symbol))
+                U = self.e_closure_set(self.move(T, symbol, self.nfa.transition_function), self.nfa.transition_function)
                 
                 if len(U) > 0:
                     if U not in dstates_u and U not in dstates_m:
@@ -445,7 +469,7 @@ class DFA(FA):
         self.print_automata("DFA", self.initial_state, self.terminal_states, self.states, self.symbols, self.transition_function, state_mapping=subset_mapping)
     
     
-    def e_closure_state(self, s):
+    def e_closure_state(self, s, transition_function):
         closure = [s]
         
         stack = Stack()
@@ -454,9 +478,9 @@ class DFA(FA):
         while not stack.is_empty():
             state = stack.pop()
             
-            for key in self.nfa.transition_function.keys():
+            for key in transition_function.keys():
                 if key[0] == state and key[1] == 'ε':
-                    for x in self.nfa.transition_function[key]:
+                    for x in transition_function[key]:
                         if x not in closure:
                             closure.append(x)
                             stack.push(x)
@@ -465,8 +489,8 @@ class DFA(FA):
         return closure
     
     
-    def e_closure_set(self, T):
-        t_func = self.nfa.transition_function
+    def e_closure_set(self, T, transition_function):
+        t_func = transition_function
         stack = Stack()
         
         for t in T:
@@ -487,12 +511,33 @@ class DFA(FA):
         return closure            
     
     
-    def move(self, sset, symbol):
+    def move(self, sset, symbol, transition_function):
         move_set = []
         
-        for key in self.nfa.transition_function.keys():
+        for key in transition_function.keys():
             if key[0] in sset and key[1] == symbol: 
-                for x in self.nfa.transition_function[key]:
+                for x in transition_function[key]:
                     move_set.append(x)
             
         return move_set
+    
+    
+    def simulate(self, string):
+        s = self.initial_state
+        terminal = False
+        
+        for char in string:
+            if char not in self.symbols:
+                print(Colors.FAIL + "[ERROR] " + Colors.ENDC + " Símbolo " + char + " no reconocido por el autómata")
+                terminal = None
+                break
+                exit()
+            
+            try:
+                s = self.transition_function[(s, char)]
+            except:
+                break
+        
+        terminal = True if s in self.terminal_states else terminal
+        
+        return terminal if terminal is None else "YES ^_^" if terminal else "NO... O_o"

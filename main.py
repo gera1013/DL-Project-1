@@ -13,13 +13,16 @@ OPERATORS = {
 # epsilon char
 EPSILON = 'ε'
 
+# string to evaluate
+STRING = 'a'
+
 # Regex expression
 #REGEX = '(a|b)*((a|(bb))*ε)'
 #REGEX = '(a|b)b'
 #REGEX = '(a|b)a?'
 #REGEX = '(aa|b)+'
 #REGEX = '(a|b)*abb'
-REGEX = '(a|b)*a(a|b)(a|b)'
+#REGEX = '(a|b)*a(a|b)(a|b)'
 #REGEX = '(0|1)1*(0|1)'
 #REGEX = '(b|b)*abb(a|b)*'
 
@@ -36,6 +39,8 @@ nfa.thompson()
 # graph resulting NFA
 nfa.graph_automata()
 
+print("RESULTADO DE SIMULACION PARA NFA (Thompson)\n-> %s\n" % nfa.simulate(STRING))
+
 
 ## NFA to DFA conversion (via Subset)
 # instantiate DFA and call subset method 
@@ -44,6 +49,8 @@ dfa.subset()
 
 # graph resulting DFA
 dfa.graph_automata(mapping=dfa.state_mapping)
+
+print("RESULTADO DE SIMULACION PARA DFA (Subconjuntos)\n-> %s\n" % dfa.simulate(STRING))
 
 
 ## Regex to DFA using direct method
@@ -61,3 +68,5 @@ direct_dfa.direct()
 
 # graph resulting DFA
 direct_dfa.graph_automata(mapping=direct_dfa.state_mapping)
+
+print("RESULTADO DE SIMULACION PARA DFA (Directo)\n-> %s\n" % direct_dfa.simulate(STRING))

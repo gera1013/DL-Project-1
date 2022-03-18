@@ -14,15 +14,15 @@ OPERATORS = {
 EPSILON = 'ε'
 
 # string to evaluate
-STRING = 'abbbababababaaaaaaabb'
+STRING = 'aabbbbbaabaaaaaaaabb'
 
 # Regex expression
 #REGEX = '(a|b)*((a|(bb))*ε)'
 #REGEX = '(a|b)b'
 #REGEX = '(a|b)a?'
 #REGEX = '(aa|b)+'
-REGEX = '(a|b)*abb'
-#REGEX = '(a|b)*a(a|b)(a|b)'
+#REGEX = '(a|b)*abb'
+REGEX = '(a|b)*a(a|b)(a|b)'
 #REGEX = '(0|1)1*(0|1)'
 #REGEX = '(b|b)*abb(a|b)*'
 
@@ -62,6 +62,7 @@ print("RESULTADO DE SIMULACION PARA DFA (Subconjuntos)\n-> %s\n-> %.3f (ms)\n" %
 hash_tree = SyntaxTree(OPERATORS, REGEX + "#", direct=True)
 
 # get nodes for computing nullable, firstpos, lastpos and followpos
+print(hash_tree.traverse_postorder(hash_tree.root))
 nodes = hash_tree.traverse_postorder(hash_tree.root, full=True)
 
 # instantiate dfa object

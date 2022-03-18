@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 from queue import LifoQueue
 
@@ -20,6 +22,9 @@ class SyntaxTree(object):
         self.symbols = list(set([char for char in regex if char not in operators if char != '(' and char != ')']))
         self.regex = regex
         self.postfix = ""
+        
+        ## options
+        self.direct = direct
         
         ## structure stuff
         self.root = None
@@ -122,14 +127,28 @@ class SyntaxTree(object):
                 tree_stack.push(Node(char))
             else:
                 if char in ['*', '?', '+']:
-                    if tree_stack.get_size() > 0: 
-                        right = tree_stack.pop()
-                    
-                        new = Node(char, right=right)
-                    
-                        right.parent = new
-                    
-                        tree_stack.push(new)
+                    if tree_stack.get_size() > 0:
+                        if self.direct and char == '+':
+                                a = tree_stack.pop()
+                                a_copy = copy.deepcopy(a)
+                                
+                                kleene = Node('*', right=a_copy)
+                                
+                                concat = Node('^', right=kleene, left=a)
+                                
+                                a_copy.parent = kleene
+                                kleene.parent = concat
+                                a.parent = concat
+                                
+                                tree_stack.push(concat)
+                        else:
+                            right = tree_stack.pop()
+                        
+                            new = Node(char, right=right)
+                        
+                            right.parent = new
+                        
+                            tree_stack.push(new)
                     else:
                         print(Colors.FAIL + "[ERROR] " + Colors.ENDC + "Operación " + char + " incompleta, insuficientes parámetros")
                         exit()
